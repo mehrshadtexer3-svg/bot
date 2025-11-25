@@ -1,29 +1,22 @@
 from flask import Flask, request, jsonify, Response
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
+import requests
 import os
 
 app = Flask(__name__)
 
 # ===============================
-# بارگذاری مدل محلی (Vicuna-7B نمونه)
-# ===============================
-model_name = "TheBloke/vicuna-7B-1.1-HF"  # مدل سبک و مکالمه‌ای
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    torch_dtype=torch.float16,
-    device_map="auto"
-)
-
-# ===============================
-# تابع چت Roxan
+# تابع چت Roxan با API پابلیک
 # ===============================
 def ask_roxan(prompt):
-    inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-    outputs = model.generate(**inputs, max_new_tokens=200)
-    answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    return answer
+    url = "https://apifreellm.com/api/chat"  # API پابلیک که تو ژوپیتر کار کرد
+    data = {"message": prompt}
+    try:
+        resp = requests.post(url, json=data, timeout=10)
+        resp.raise_for_status()
+        result = resp.json()
+        return result.get("response", "هیچ جوابی دریافت نشد.")
+    except Exception as e:
+        return f"خطا در دریافت پاسخ! {str(e)}"
 
 # ===============================
 # صفحه HTML
@@ -78,7 +71,7 @@ def ask():
     return jsonify({"answer": answer})
 
 # ===============================
-# اجرا
+# اجرا با پورت Render
 # ===============================
 if __name__ == "__main__":
     port=int(os.environ.get("PORT",5000))
