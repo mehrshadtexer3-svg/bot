@@ -1,4 +1,2 @@
 flask>=2.3
-torch>=2.1
-transformers>=4.35
-sentencepiece
+requests>=2.31
