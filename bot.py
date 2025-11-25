@@ -1,29 +1,40 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from flask import Flask, request
+from telegram import Bot, Update
+import os
 import requests
 
 TOKEN = "8544023499:AAHX6jjFJuvd1KqG8-eUIZYnOMrM2XUdHks"
+bot = Bot(token=TOKEN)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("سلام! من Roxan هستم، می‌تونی با من چت کنی.")
+app = Flask(__name__)
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_msg = update.message.text
-
-    # ارسال به API پابلیک Roxan
+# تابع پاسخ‌دهی Roxan (مثلاً همان API پابلیک یا Local LLM)
+def ask_roxan(prompt):
+    # نمونه ساده با API پابلیک
     url = "https://apifreellm.com/api/chat"
-    data = {"message": user_msg}
     try:
-        resp = requests.post(url, json=data, timeout=10)
+        resp = requests.post(url, json={"message": prompt}, timeout=10)
         resp.raise_for_status()
-        answer = resp.json().get("response", "هیچ جوابی دریافت نشد.")
-    except Exception as e:
-        answer = f"خطا در دریافت پاسخ! {str(e)}"
+        return resp.json().get("response", "هیچ جوابی دریافت نشد.")
+    except:
+        return "خطا در دریافت پاسخ!"
 
-    await update.message.reply_text(answer)
+# مسیر Webhook
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), bot)
+    if update.message:
+        chat_id = update.message.chat.id
+        text = update.message.text
+        answer = ask_roxan(text)
+        bot.send_message(chat_id=chat_id, text=answer)
+    return "ok"
 
-app = ApplicationBuilder().token(TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+# مسیر Health Check
+@app.route("/")
+def index():
+    return "Roxan Bot is running!"
 
-app.run_polling()
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
